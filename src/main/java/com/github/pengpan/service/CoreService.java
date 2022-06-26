@@ -8,11 +8,14 @@ import cn.hutool.core.date.LocalDateTimeUtil;
 import cn.hutool.core.io.resource.ResourceUtil;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.thread.ThreadUtil;
+import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
 import cn.hutool.crypto.asymmetric.KeyType;
 import cn.hutool.crypto.asymmetric.RSA;
+import cn.hutool.extra.mail.MailUtil;
 import cn.hutool.json.JSONUtil;
+import cn.hutool.setting.dialect.Props;
 import cn.hutool.setting.dialect.PropsUtil;
 import com.ejlchina.data.TypeRef;
 import com.ejlchina.json.JSONKit;
@@ -22,6 +25,7 @@ import com.github.pengpan.common.cookie.CookieStore;
 import com.github.pengpan.common.store.AccountStore;
 import com.github.pengpan.entity.*;
 import com.github.pengpan.enums.DataTypeEnum;
+import com.github.pengpan.enums.DoctorEnum;
 import com.github.pengpan.util.Assert;
 import com.jayway.jsonpath.JsonPath;
 import lombok.extern.slf4j.Slf4j;
@@ -272,12 +276,26 @@ public class CoreService {
             String html = mainClient.htmlPage(redirectUrl);
             // 判断结果
             if (StrUtil.contains(html, "预约成功")) {
+                sendMailMsg();
                 log.info("预约成功");
                 return true;
             }
             log.info("预约失败");
         }
         return false;
+    }
+
+    private void sendMailMsg() {
+        Props props = new Props("config.properties", CharsetUtil.CHARSET_UTF_8);
+        Config config = new Config();
+        props.fillBean(config, null);
+        List<String> tos = config.getToUser();
+        if (CollUtil.isEmpty(tos)) {
+            return;
+        }
+        String doctorId = config.getDoctorId();
+        String content = "账号：" + config.getUserName() + DoctorEnum.valueOf("D" + doctorId).getDoctorName() + "抢票成功啦！";
+        MailUtil.send(tos, "抢票成功啦", content, false);
     }
 
     private List<Register> buildForm(ScheduleInfo schInfo, Config config) {

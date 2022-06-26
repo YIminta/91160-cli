@@ -11,6 +11,7 @@ import com.github.pengpan.entity.Prop;
 import com.github.pengpan.enums.InitDataEnum;
 import com.github.pengpan.service.CoreService;
 import com.github.pengpan.util.CommonUtil;
+import com.google.common.collect.Lists;
 import io.airlift.airline.Command;
 import lombok.extern.slf4j.Slf4j;
 
@@ -137,6 +138,7 @@ public class Init implements Runnable {
         props.add(new Prop("是否开启代理[true/false]", "enableProxy", "false"));
         props.add(new Prop("代理文件路径[格式: /dir/proxy.txt]", "proxyFilePath", "proxy.txt"));
         props.add(new Prop("获取代理方式[ROUND_ROBIN(轮询)/RANDOM(随机)]", "proxyMode", "ROUND_ROBIN"));
+        props.add(new Prop("邮件消息通知收件人", "toUser", ""));
 
         StringBuilder sb = new StringBuilder();
         for (Prop prop : props) {

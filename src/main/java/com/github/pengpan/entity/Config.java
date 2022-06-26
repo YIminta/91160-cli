@@ -95,4 +95,9 @@ public class Config {
      * 获取代理方式[ROUND_ROBIN(轮询)/RANDOM(随机)]
      */
     private ProxyModeEnum proxyMode;
+
+    /**
+     * 获取邮件收件人
+     */
+    private List<String> toUser;
 }
