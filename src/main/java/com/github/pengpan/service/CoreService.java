@@ -8,14 +8,12 @@ import cn.hutool.core.date.LocalDateTimeUtil;
 import cn.hutool.core.io.resource.ResourceUtil;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.thread.ThreadUtil;
-import cn.hutool.core.util.CharsetUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
 import cn.hutool.crypto.asymmetric.KeyType;
 import cn.hutool.crypto.asymmetric.RSA;
 import cn.hutool.extra.mail.MailUtil;
 import cn.hutool.json.JSONUtil;
-import cn.hutool.setting.dialect.Props;
 import cn.hutool.setting.dialect.PropsUtil;
 import com.ejlchina.data.TypeRef;
 import com.ejlchina.json.JSONKit;
@@ -184,6 +182,7 @@ public class CoreService {
             // 挂号
             boolean success = doRegister(formList);
             if (success) {
+                sendMailMsg(config);
                 log.info("挂号成功");
                 break;
             }
@@ -276,7 +275,7 @@ public class CoreService {
             String html = mainClient.htmlPage(redirectUrl);
             // 判断结果
             if (StrUtil.contains(html, "预约成功")) {
-                sendMailMsg();
+
                 log.info("预约成功");
                 return true;
             }
@@ -285,10 +284,7 @@ public class CoreService {
         return false;
     }
 
-    private void sendMailMsg() {
-        Props props = new Props("config.properties", CharsetUtil.CHARSET_UTF_8);
-        Config config = new Config();
-        props.fillBean(config, null);
+    private void sendMailMsg(Config config) {
         List<String> tos = config.getToUser();
         if (CollUtil.isEmpty(tos)) {
             return;
