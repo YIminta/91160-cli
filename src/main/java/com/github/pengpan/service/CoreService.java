@@ -165,7 +165,7 @@ public class CoreService {
 
             if (CollUtil.isEmpty(schInfoList)) {
                 // 休眠
-                ThreadUtil.sleep(config.getSleepTime(), TimeUnit.SECONDS);
+                ThreadUtil.sleep(config.getSleepTime(), TimeUnit.MILLISECONDS);
                 continue;
             }
 
