@@ -1,5 +1,6 @@
 package com.github.pengpan.entity;
 
+import com.github.pengpan.enums.BrushChannelEnum;
 import com.github.pengpan.enums.ProxyModeEnum;
 import lombok.Data;
 
@@ -97,7 +98,7 @@ public class Config {
     private ProxyModeEnum proxyMode;
 
     /**
-     * 获取邮件收件人
+     * 刷号通道[CHANNEL_1(通道1)/CHANNEL_2(通道2)]
      */
-    private List<String> toUser;
+    private BrushChannelEnum brushChannel;
 }
