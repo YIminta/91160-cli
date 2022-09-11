@@ -60,7 +60,11 @@ public class CoreServiceImpl implements CoreService {
     @Override
     public List<Map<String, Object>> getDept(String unitId) {
         Assert.notBlank(unitId, "[unitId]不能为空");
-        return mainClient.getDept(unitId);
+        return mainClient.getDept(unitId).stream().flatMap(x -> {
+            String child = Optional.ofNullable(x.get("childs")).map(JSONKit::toJson).orElseGet(String::new);
+            return JSONKit.<List<LinkedHashMap<String, Object>>>toBean(new TypeRef<List<LinkedHashMap<String, Object>>>() {
+            }.getType(), child).stream();
+        }).collect(Collectors.toList());
     }
 
     @Override
@@ -96,7 +100,7 @@ public class CoreServiceImpl implements CoreService {
         String html = mainClient.htmlPage(url);
         Document document = Jsoup.parse(html);
         Element tbody = document.getElementById("mem_list");
-        Assert.notNull(tbody, "就诊人为空");
+        Assert.notNull(tbody, "就诊人为空，请先去家庭成员管理(https://user.91160.com/member.html)添加家庭成员并完成认证");
         Elements trs = tbody.getElementsByTag("tr");
         List<Map<String, Object>> memberList = new ArrayList<>();
         for (Element tr : trs) {
