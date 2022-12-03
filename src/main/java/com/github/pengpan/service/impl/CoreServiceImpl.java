@@ -1,12 +1,15 @@
 package com.github.pengpan.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.convert.Convert;
 import cn.hutool.core.date.DatePattern;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.resource.ResourceUtil;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.thread.ThreadUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.http.HttpUtil;
+import cn.hutool.json.JSONUtil;
 import cn.hutool.setting.dialect.PropsUtil;
 import com.ejlchina.data.TypeRef;
 import com.ejlchina.json.JSONKit;
@@ -18,17 +21,20 @@ import com.github.pengpan.enums.DataTypeEnum;
 import com.github.pengpan.service.BrushService;
 import com.github.pengpan.service.CoreService;
 import com.github.pengpan.util.Assert;
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import retrofit2.Response;
 
 import javax.annotation.Resource;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -38,6 +44,8 @@ import java.util.stream.Collectors;
 @Service
 public class CoreServiceImpl implements CoreService {
 
+    public static final ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(5, 5, 10,
+            TimeUnit.SECONDS, new ArrayBlockingQueue<>(10), new ThreadPoolExecutor.DiscardPolicy());
     @Resource
     private MainClient mainClient;
     @Resource
@@ -120,12 +128,12 @@ public class CoreServiceImpl implements CoreService {
 
     @Override
     public void brushTicketTask(Config config) {
-        log.info("挂号开始");
+        log.info("挂号开始unitId-{}", config.getUnitId());
 
         printBrushChannelInfo(config.getBrushChannel());
 
         for (int i = 1; ; i++) {
-            log.info("[{}]努力刷号中...", i);
+            log.info("[{}]努力刷号中...unitId-{}", i, config.getUnitId());
 
             List<ScheduleInfo> schInfoList = brushService.getTicket(config);
 
@@ -135,7 +143,7 @@ public class CoreServiceImpl implements CoreService {
                 continue;
             }
 
-            log.info("刷到号了");
+            log.info("刷到号了,unitId-{}", config.getUnitId());
             schInfoList.forEach(x -> log.info(JSONKit.toJson(x)));
 
             // 判断登录是否有效
@@ -150,11 +158,27 @@ public class CoreServiceImpl implements CoreService {
             boolean success = doRegister(formList);
             if (success) {
                 log.info("挂号成功");
+                sendMailMsg(config);
                 break;
             }
         }
 
         log.info("挂号结束");
+    }
+
+    @Async
+    void sendMailMsg(Config config) {
+        List<String> tos = config.getToUser();
+        if (CollUtil.isEmpty(tos)) {
+            return;
+        }
+        HashMap<String, Object> param = new HashMap<>();
+        param.put("username", config.getUserName());
+        param.put("doctor_name", "九价HPV");
+        param.put("receiver", tos);
+        HashMap<Object, Object> data = new HashMap<>();
+        data.put("data", param);
+        HttpUtil.post("http://47.98.176.105:90/data", JSONUtil.toJsonStr(data));
     }
 
     private void printBrushChannelInfo(BrushChannelEnum brushChannel) {
@@ -177,46 +201,62 @@ public class CoreServiceImpl implements CoreService {
             log.info("预约失败，号源无效");
             return false;
         }
-
-        int failCountMax = 3;
-        String errorMsg = StrUtil.format("同一号源预约失败次数达到{}次，已终止程序！请检查号源是否有效！", failCountMax);
+        AtomicInteger failCountMax = new AtomicInteger();
+        String errorMsg = StrUtil.format("同一号源预约失败次数达到{}次，已切换号源！", failCountMax);
         Map<String, Integer> failCount = MapUtil.newHashMap();
 
-        for (Register form : formList) {
+        Collections.shuffle(formList);
+        List<CompletableFuture<String>> completableFutures = Lists.newArrayList();
+        for (int i = 0; i < 5; i++) {
+            List<CompletableFuture<String>> f = formList.stream().map(form -> CompletableFuture.supplyAsync(() -> {
+                Response<Void> submitResp = mainClient.doSubmit(
+                        form.getSchData(),
+                        form.getUnitId(),
+                        form.getDepId(),
+                        form.getDoctorId(),
+                        form.getSchId(),
+                        form.getMemberId(),
+                        form.getAccept(),
+                        form.getTimeType(),
+                        form.getDetlid(),
+                        form.getDetlidRealtime(),
+                        form.getLevelCode(),
+                        form.getAddressId(),
+                        form.getAddress()
+                );
 
-            int count = failCount.getOrDefault(form.getSchId(), 0);
-            Assert.isTrue(count < failCountMax, errorMsg);
+                if (!submitResp.raw().isRedirect()) {
+                    return "失败";
+                }
+                String redirectUrl = submitResp.headers().get("Location");
+                String html = mainClient.htmlPage(redirectUrl);
+                // 判断结果
+                if (StrUtil.contains(html, "预约成功")) {
+                    log.info("预约成功");
+                    return "成功";
+                }
+                log.info("预约失败" + failCountMax.incrementAndGet() + "次");
+                return "失败";
+            }, threadPoolExecutor)).collect(Collectors.toList());
+            completableFutures.addAll(f);
+        }
+        CompletableFuture<Void> allOf = CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
 
-            Response<Void> submitResp = mainClient.doSubmit(
-                    form.getSchData(),
-                    form.getUnitId(),
-                    form.getDepId(),
-                    form.getDoctorId(),
-                    form.getSchId(),
-                    form.getMemberId(),
-                    form.getAccept(),
-                    form.getTimeType(),
-                    form.getDetlid(),
-                    form.getDetlidRealtime(),
-                    form.getLevelCode(),
-                    form.getAddressId(),
-                    form.getAddress()
-            );
-
-            if (!submitResp.raw().isRedirect()) {
-                continue;
+        CompletableFuture<List<String>> resultFuture = allOf.thenApply(v -> completableFutures.stream().map(s -> {
+            try {
+                return s.get();
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
             }
-
-            String redirectUrl = submitResp.headers().get("Location");
-            String html = mainClient.htmlPage(redirectUrl);
-            // 判断结果
-            if (StrUtil.contains(html, "预约成功")) {
-                log.info("预约成功");
+        }).collect(Collectors.toList()));
+        try {
+            List<String> list = resultFuture.get();
+            if (list.contains("成功")) {
                 return true;
             }
-            log.info("预约失败:{}次 ({} {})", count + 1, form.getToDate(), form.getDetlName());
-
-            failCount.put(form.getSchId(), ++count);
+            log.info("一组预约失败，准备换下一组。总共失败次数：{}，执行结果：{}", failCountMax.get(), list);
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
         }
         return false;
     }

@@ -69,7 +69,7 @@ public class SecondTicketServiceImpl extends AbstractTicketService {
         DoctorSch doctorSch = mainClient.doctor(url, userKey, doctorId, doctorId, unitId, deptId, date, days);
 
         if (doctorSch == null || !Objects.equals(1, doctorSch.getCode())) {
-            log.warn("获取数据失败: {}", JSONKit.toJson(doctorSch));
+            log.warn("获取数据失败: {},unitId-{}", JSONKit.toJson(doctorSch),config.getUnitId());
             return null;
         }
 

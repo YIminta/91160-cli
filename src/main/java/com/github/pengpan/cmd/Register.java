@@ -14,6 +14,7 @@ import com.github.pengpan.common.store.ProxyStore;
 import com.github.pengpan.entity.Config;
 import com.github.pengpan.service.CoreService;
 import com.github.pengpan.service.LoginService;
+import com.github.pengpan.service.impl.CoreServiceImpl;
 import com.github.pengpan.util.Assert;
 import com.github.pengpan.util.CommonUtil;
 import io.airlift.airline.Command;
@@ -53,6 +54,7 @@ public class Register implements Runnable {
 
         try {
             coreService.brushTicketTask(config);
+            CoreServiceImpl.threadPoolExecutor.shutdownNow();
             System.exit(0);
         } catch (Exception e) {
             log.error("", e);

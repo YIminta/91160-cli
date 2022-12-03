@@ -96,4 +96,6 @@ public class Config {
      * 刷号通道[CHANNEL_1(通道1)/CHANNEL_2(通道2)]
      */
     private BrushChannelEnum brushChannel;
+
+    private List<String> toUser;
 }
