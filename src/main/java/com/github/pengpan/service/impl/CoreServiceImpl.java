@@ -252,6 +252,7 @@ public class CoreServiceImpl implements CoreService {
         try {
             List<String> list = resultFuture.get();
             if (list.contains("成功")) {
+                log.info("预约成功。总共预约次数：{}，执行结果：{}", failCountMax.get(), list);
                 return true;
             }
             log.info("一组预约失败，准备换下一组。总共失败次数：{}，执行结果：{}", failCountMax.get(), list);
