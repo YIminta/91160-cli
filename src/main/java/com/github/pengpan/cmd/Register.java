@@ -17,6 +17,7 @@ import com.github.pengpan.service.LoginService;
 import com.github.pengpan.service.impl.CoreServiceImpl;
 import com.github.pengpan.util.Assert;
 import com.github.pengpan.util.CommonUtil;
+import com.google.common.collect.Lists;
 import io.airlift.airline.Command;
 import io.airlift.airline.Option;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,9 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.File;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 
@@ -41,9 +45,21 @@ public class Register implements Runnable {
             description = "Path to properties configuration file.")
     private String configFile;
 
+    @Option(
+            name = {"-c1", "--config1"},
+            title = "configuration file",
+            required = false,
+            description = "Path to properties configuration file.")
+    private String configFile1;
+
     @Override
     public void run() {
+        List<Config> list = Lists.newArrayList();
         Config config = getConfig(configFile);
+        list.add(config);
+        if (StrUtil.isNotEmpty(configFile1)) {
+            list.add(getConfig(configFile1));
+        }
 
         CoreService coreService = SpringUtil.getBean(CoreService.class);
         LoginService loginService = SpringUtil.getBean(LoginService.class);
@@ -53,8 +69,18 @@ public class Register implements Runnable {
         checkEnableAppoint(config, coreService);
 
         try {
-            coreService.brushTicketTask(config);
-            CoreServiceImpl.threadPoolExecutor.shutdownNow();
+            ExecutorService executor = Executors.newFixedThreadPool(2);
+
+            CompletableFuture[] completableFutures = list.stream().map(row ->
+                            CompletableFuture.supplyAsync(() -> {
+                                coreService.brushTicketTask(row);
+                                return "线程" + row.getUnitId() + "执行完成";
+                            }, executor))
+                    .toArray(CompletableFuture[]::new);
+
+            CompletableFuture<Object> anyOf = CompletableFuture.anyOf(completableFutures);
+            Object o = anyOf.get();
+            log.info("抢票结束" + o);
             System.exit(0);
         } catch (Exception e) {
             log.error("", e);

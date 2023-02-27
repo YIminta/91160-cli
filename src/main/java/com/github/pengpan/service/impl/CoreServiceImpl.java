@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.date.DatePattern;
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.exceptions.ExceptionUtil;
 import cn.hutool.core.io.resource.ResourceUtil;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.thread.ThreadUtil;
@@ -44,8 +45,8 @@ import java.util.stream.Collectors;
 @Service
 public class CoreServiceImpl implements CoreService {
 
-    public static final ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(5, 5, 10,
-            TimeUnit.SECONDS, new ArrayBlockingQueue<>(10), new ThreadPoolExecutor.DiscardPolicy());
+    public static final ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(60, 60, 10,
+            TimeUnit.SECONDS, new ArrayBlockingQueue<>(120), new ThreadPoolExecutor.DiscardPolicy());
     @Resource
     private MainClient mainClient;
     @Resource
@@ -208,7 +209,7 @@ public class CoreServiceImpl implements CoreService {
         Collections.shuffle(formList);
         List<CompletableFuture<String>> completableFutures = Lists.newArrayList();
         for (int i = 0; i < 5; i++) {
-            List<CompletableFuture<String>> f = formList.stream().map(form -> CompletableFuture.supplyAsync(() -> {
+            List<CompletableFuture<String>> f = formList.stream().limit(5).map(form -> CompletableFuture.supplyAsync(() -> {
                 Response<Void> submitResp = mainClient.doSubmit(
                         form.getSchData(),
                         form.getUnitId(),
@@ -246,7 +247,8 @@ public class CoreServiceImpl implements CoreService {
             try {
                 return s.get();
             } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
+                log.info(ExceptionUtil.stacktraceToString(e));
+                return "error";
             }
         }).collect(Collectors.toList()));
         try {
@@ -257,7 +259,8 @@ public class CoreServiceImpl implements CoreService {
             }
             log.info("一组预约失败，准备换下一组。总共失败次数：{}，执行结果：{}", failCountMax.get(), list);
         } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
+            log.info(ExceptionUtil.stacktraceToString(e));
+            return false;
         }
         return false;
     }
