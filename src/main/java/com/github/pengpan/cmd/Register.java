@@ -55,7 +55,7 @@ public class Register implements Runnable {
     @Override
     public void run() {
         List<Config> list = Lists.newArrayList();
-        Config config = getConfig(configFile);
+        Config config = getConfig("D:\\bao\\9\\93-2\\config.properties");
         list.add(config);
         if (StrUtil.isNotEmpty(configFile1)) {
             list.add(getConfig(configFile1));
@@ -69,18 +69,19 @@ public class Register implements Runnable {
         checkEnableAppoint(config, coreService);
 
         try {
-            ExecutorService executor = Executors.newFixedThreadPool(2);
-
-            CompletableFuture[] completableFutures = list.stream().map(row ->
-                            CompletableFuture.supplyAsync(() -> {
-                                coreService.brushTicketTask(row);
-                                return "线程" + row.getUnitId() + "执行完成";
-                            }, executor))
-                    .toArray(CompletableFuture[]::new);
-
-            CompletableFuture<Object> anyOf = CompletableFuture.anyOf(completableFutures);
-            Object o = anyOf.get();
-            log.info("抢票结束" + o);
+            coreService.brushTicketTask(config);
+//            ExecutorService executor = Executors.newFixedThreadPool(2);
+//
+//            CompletableFuture[] completableFutures = list.stream().map(row ->
+//                            CompletableFuture.supplyAsync(() -> {
+//                                coreService.brushTicketTask(row);
+//                                return "线程" + row.getUnitId() + "执行完成";
+//                            }, executor))
+//                    .toArray(CompletableFuture[]::new);
+//
+//            CompletableFuture<Object> anyOf = CompletableFuture.anyOf(completableFutures);
+//            Object o = anyOf.get();
+//            log.info("抢票结束" + o);
             System.exit(0);
         } catch (Exception e) {
             log.error("", e);

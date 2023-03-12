@@ -75,7 +75,7 @@ public class SecondTicketServiceImpl extends AbstractTicketService {
 
         Map<String, Object> ticketData = doctorSch.getSch();
         String sch = Optional.ofNullable(ticketData).map(JSONKit::toJson).orElseGet(String::new);
-
+        log.info(sch);
         return getScheduleInfos(sch, keyList);
     }
 }

@@ -16,6 +16,7 @@ public class Register {
     private String doctorId;
     private String schId;
     private String memberId;
+    private String hisMemId;
     private String accept;
     private String timeType;
     private String detlName;

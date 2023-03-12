@@ -157,14 +157,14 @@ public class CoreServiceImpl implements CoreService {
 
             // 挂号
             boolean success = doRegister(formList);
-            if (success) {
-                log.info("挂号成功");
-                sendMailMsg(config);
-                break;
-            }
+//            if (success) {
+//                log.info("挂号成功");
+//                sendMailMsg(config);
+//                break;
+//            }
         }
 
-        log.info("挂号结束");
+        //log.info("挂号结束");
     }
 
     @Async
@@ -208,42 +208,43 @@ public class CoreServiceImpl implements CoreService {
 
         Collections.shuffle(formList);
         List<CompletableFuture<String>> completableFutures = Lists.newArrayList();
-        for (int i = 0; i < 5; i++) {
-            List<CompletableFuture<String>> f = formList.stream().limit(5).map(form -> CompletableFuture.supplyAsync(() -> {
-                Response<Void> submitResp = mainClient.doSubmit(
-                        form.getSchData(),
-                        form.getUnitId(),
-                        form.getDepId(),
-                        form.getDoctorId(),
-                        form.getSchId(),
-                        form.getMemberId(),
-                        form.getAccept(),
-                        form.getTimeType(),
-                        form.getDetlid(),
-                        form.getDetlidRealtime(),
-                        form.getLevelCode(),
-                        form.getAddressId(),
-                        form.getAddress()
-                );
 
-                if (!submitResp.raw().isRedirect()) {
-                    return "失败";
-                }
-                String redirectUrl = submitResp.headers().get("Location");
-                String html = mainClient.htmlPage(redirectUrl);
-                // 判断结果
-                if (StrUtil.contains(html, "预约成功")) {
-                    log.info("预约成功");
-                    return "成功";
-                }
-                log.info("预约失败" + failCountMax.incrementAndGet() + "次");
+        List<CompletableFuture<String>> f = formList.stream().limit(5).map(form -> CompletableFuture.supplyAsync(() -> {
+            Response<Void> submitResp = mainClient.doSubmit(
+                    form.getSchData(),
+                    form.getUnitId(),
+                    form.getDepId(),
+                    form.getDoctorId(),
+                    form.getSchId(),
+                    form.getMemberId(),
+                    form.getAccept(),
+                    form.getTimeType(),
+                    form.getDetlid(),
+                    form.getDetlidRealtime(),
+                    form.getLevelCode(),
+                    form.getAddressId(),
+                    form.getAddress(),
+                    form.getHisMemId()
+            );
+
+            if (!submitResp.raw().isRedirect()) {
                 return "失败";
-            }, threadPoolExecutor)).collect(Collectors.toList());
-            completableFutures.addAll(f);
-        }
-        CompletableFuture<Void> allOf = CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
+            }
+            String redirectUrl = submitResp.headers().get("Location");
+            String html = mainClient.htmlPage(redirectUrl);
+            // 判断结果
+            if (StrUtil.contains(html, "预约成功")) {
+                log.info("预约成功");
+                return "成功";
+            }
+            log.info("预约失败" + failCountMax.incrementAndGet() + "次");
+            return "失败";
+        }, threadPoolExecutor)).collect(Collectors.toList());
 
-        CompletableFuture<List<String>> resultFuture = allOf.thenApply(v -> completableFutures.stream().map(s -> {
+
+        CompletableFuture<Void> allOf = CompletableFuture.allOf(f.toArray(new CompletableFuture[0]));
+
+        CompletableFuture<List<String>> resultFuture = allOf.thenApply(v -> f.stream().map(s -> {
             try {
                 return s.get();
             } catch (InterruptedException | ExecutionException e) {
@@ -322,6 +323,7 @@ public class CoreServiceImpl implements CoreService {
                         .doctorId(config.getDoctorId())
                         .schId(schInfo.getSchedule_id())
                         .memberId(config.getMemberId())
+                        .hisMemId(config.getHisMemId())
                         .accept("1")
                         .timeType(schInfo.getTime_type())
                         .detlName(x.getName())

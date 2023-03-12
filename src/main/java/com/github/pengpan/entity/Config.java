@@ -98,4 +98,6 @@ public class Config {
     private BrushChannelEnum brushChannel;
 
     private List<String> toUser;
+
+    private String hisMemId;
 }
