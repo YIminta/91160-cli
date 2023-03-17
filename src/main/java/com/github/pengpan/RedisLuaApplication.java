@@ -1,3 +1,4 @@
+/*
 package com.github.pengpan;
 
 import com.github.pengpan.cmd.Register;
@@ -14,3 +15,4 @@ public class RedisLuaApplication {
 	}
 
 }
+*/

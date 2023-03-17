@@ -55,7 +55,7 @@ public class Register implements Runnable {
     @Override
     public void run() {
         List<Config> list = Lists.newArrayList();
-        Config config = getConfig("D:\\bao\\9\\93-2\\config.properties");
+        Config config = getConfig(configFile);
         list.add(config);
         if (StrUtil.isNotEmpty(configFile1)) {
             list.add(getConfig(configFile1));

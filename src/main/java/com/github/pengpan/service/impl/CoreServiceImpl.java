@@ -157,14 +157,14 @@ public class CoreServiceImpl implements CoreService {
 
             // 挂号
             boolean success = doRegister(formList);
-//            if (success) {
-//                log.info("挂号成功");
-//                sendMailMsg(config);
-//                break;
-//            }
+            if (success) {
+                log.info("挂号成功");
+                sendMailMsg(config);
+                break;
+            }
         }
 
-        //log.info("挂号结束");
+        log.info("挂号结束");
     }
 
     @Async
